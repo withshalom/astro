@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Super Duper Stario Bros. — Asteroid Avoidance!</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#000;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;font-family:monospace;}
+canvas{display:block;position:fixed;top:0;left:0;}
+#ui{position:fixed;top:0;left:0;width:100%;z-index:10;pointer-events:none;}
+#hud{display:flex;justify-content:space-between;align-items:flex-start;padding:10px 14px;}
+.hud-block{display:flex;flex-direction:column;gap:2px;}
+.hud-lbl{font-size:8px;letter-spacing:2px;color:rgba(180,210,255,0.6);font-family:monospace;}
+.hud-val{font-size:16px;font-weight:bold;color:#e0e8ff;font-family:monospace;text-shadow:0 0 8px #6688ff;}
+#shield-wrap{display:flex;gap:4px;margin-top:3px;}
+.sh-pip{width:18px;height:8px;border-radius:2px;background:#00aaff;box-shadow:0 0 6px #00aaff;transition:background 0.3s;}
+.sh-pip.dead{background:#223;box-shadow:none;}
+#force-bar-wrap{position:fixed;bottom:14px;left:14px;z-index:10;pointer-events:none;}
+#force-bar-lbl{font-size:8px;letter-spacing:2px;color:#a855f7;font-family:monospace;}
+#force-bar-bg{width:90px;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;margin-top:2px;border:1px solid rgba(168,85,247,0.3);}
+#force-bar-fill{height:100%;width:100%;background:linear-gradient(90deg,#4c1d95,#a855f7);border-radius:3px;box-shadow:0 0 8px #a855f7;transition:width 0.15s;}
+#wave-lbl{position:fixed;top:10px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:3px;color:rgba(180,210,255,0.5);font-family:monospace;z-index:10;pointer-events:none;}
+/* D-pad — imported from Super Stario Bros. */
+#dpad{position:fixed;bottom:36px;left:16px;width:180px;height:180px;z-index:20;opacity:0.85;pointer-events:auto;}
+.db{position:absolute;width:58px;height:58px;background:rgba(100,180,255,0.1);border:1px solid rgba(100,180,255,0.35);border-radius:8px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;}
+.db.on{background:rgba(100,180,255,0.28);box-shadow:0 0 14px rgba(100,180,255,0.5);}
+#du{top:0;left:61px;}#dd{bottom:0;left:61px;}#dl{top:61px;left:0;}#dr{top:61px;right:0;}
+.arr-u{width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-bottom:22px solid rgba(100,180,255,0.85);}
+.arr-d{width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:22px solid rgba(100,180,255,0.85);}
+.arr-l{width:0;height:0;border-top:14px solid transparent;border-bottom:14px solid transparent;border-right:22px solid rgba(100,180,255,0.85);}
+.arr-r{width:0;height:0;border-top:14px solid transparent;border-bottom:14px solid transparent;border-left:22px solid rgba(100,180,255,0.85);}
+/* Force wave button — sits left of Duke's circle */
+#force-btn{position:fixed;bottom:60px;right:178px;width:58px;height:58px;border-radius:50%;background:rgba(168,85,247,0.12);border:2px solid rgba(168,85,247,0.4);display:flex;align-items:center;justify-content:center;color:#a855f7;font-size:8px;font-weight:bold;font-family:monospace;letter-spacing:1px;text-align:center;line-height:1.3;z-index:30;display:none;-webkit-tap-highlight-color:transparent;}
+#force-btn.ready{border-color:#a855f7;box-shadow:0 0 20px #a855f7;background:rgba(168,85,247,0.25);color:#e9d5ff;}
+#force-btn.on{background:rgba(168,85,247,0.5);}
+/* Duke gunner circle */
+#gunner-arc-canvas{position:fixed;bottom:0;right:0;width:160px;height:160px;z-index:25;touch-action:none;}
+/* Overlay screens */
+#overlay,#dialogue-screen,#gameover-screen,#ending-screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;}
+#overlay{background:radial-gradient(ellipse at center,#000814 0%,#000 100%);}
+#dialogue-screen{background:rgba(0,4,20,0.94);display:none;}
+#gameover-screen{background:radial-gradient(ellipse,rgba(60,0,0,0.97),#000);display:none;}
+#ending-screen{background:#000;display:none;}
+.screen-title{font-size:clamp(22px,6vw,42px);font-weight:900;color:#e0e8ff;font-family:monospace;text-align:center;letter-spacing:3px;text-shadow:0 0 30px #6688ff,0 0 60px #334499;animation:titlePulse 2s ease-in-out infinite;line-height:1.2;padding:0 12px;}
+.screen-sub{font-size:clamp(11px,3vw,16px);color:#fb923c;font-family:monospace;letter-spacing:4px;margin-top:6px;text-shadow:0 0 12px #fb923c;}
+.screen-crawl{max-width:310px;text-align:center;font-size:11px;line-height:1.9;color:rgba(224,232,255,0.55);margin:20px 12px;font-family:monospace;letter-spacing:1px;}
+.big-btn{margin-top:16px;padding:13px 36px;border:2px solid #e0e8ff;background:transparent;color:#e0e8ff;font-family:monospace;font-size:13px;font-weight:bold;letter-spacing:4px;cursor:pointer;-webkit-tap-highlight-color:transparent;box-shadow:0 0 16px rgba(100,136,255,0.3);animation:btnGlow 1.8s ease-in-out infinite;}
+/* Dialogue */
+.dlg-portrait-row{display:flex;gap:16px;margin-bottom:20px;}
+.dlg-portrait{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.dlg-portrait canvas{border-radius:8px;border:1px solid rgba(180,210,255,0.2);}
+.dlg-portrait-name{font-size:7px;letter-spacing:2px;color:rgba(180,210,255,0.5);font-family:monospace;}
+.dlg-line{max-width:300px;text-align:center;padding:10px 16px;border-radius:8px;margin:6px 0;font-family:monospace;font-size:12px;line-height:1.7;color:#e0e8ff;}
+.dlg-speaker{font-size:9px;letter-spacing:2px;margin-bottom:4px;opacity:0.7;}
+.dlg-continue{font-size:9px;letter-spacing:3px;color:rgba(180,210,255,0.4);margin-top:16px;animation:blink 1.2s ease-in-out infinite;font-family:monospace;}
+@keyframes blink{0%,100%{opacity:0.3;}50%{opacity:1;}}
+@keyframes titlePulse{0%,100%{text-shadow:0 0 30px #6688ff,0 0 60px #334499;}50%{text-shadow:0 0 50px #88aaff,0 0 100px #4455bb;}}
+@keyframes btnGlow{0%,100%{box-shadow:0 0 16px rgba(100,136,255,0.3);}50%{box-shadow:0 0 32px rgba(100,136,255,0.6);}}
+</style>
+</head>
+<body>
+<canvas id="gc"></canvas>
+
+<div id="ui">
+  <div id="hud">
+    <div class="hud-block">
+      <div class="hud-lbl">SCORE</div>
+      <div class="hud-val" id="score-display">00000</div>
+    </div>
+    <div id="wave-lbl">WAVE 1</div>
+    <div class="hud-block" style="align-items:flex-end">
+      <div class="hud-lbl">SHIELD</div>
+      <div id="shield-wrap">
+        <div class="sh-pip" id="sh0"></div>
+        <div class="sh-pip" id="sh1"></div>
+        <div class="sh-pip" id="sh2"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="force-bar-wrap">
+  <div id="force-bar-lbl">FORCE</div>
+  <div id="force-bar-bg"><div id="force-bar-fill"></div></div>
+</div>
+
+<canvas id="gunner-arc-canvas"></canvas>
+<div id="force-btn">FORCE<br>WAVE</div>
+
+<div id="dpad">
+  <div class="db" id="du"><div class="arr-u"></div></div>
+  <div class="db" id="dd"><div class="arr-d"></div></div>
+  <div class="db" id="dl"><div class="arr-l"></div></div>
+  <div class="db" id="dr"><div class="arr-r"></div></div>
+</div>
+
+<div id="overlay">
+  <div class="screen-title">SUPER DUPER<br>STARIO BROS.</div>
+  <div class="screen-sub">ASTEROID AVOIDANCE!</div>
+  <div class="screen-crawl">
+    Scion and Duke need off-planet — fast.<br>
+    Ambassador Slaya and her pilot Flynn<br>
+    agree to smuggle them through the<br>
+    asteroid field. For a price.<br><br>
+    Survive 10 waves. Make the jump.<br>
+    Stay off the Empire's radar.
+  </div>
+  <button class="big-btn" id="start-btn">ENGAGE</button>
+</div>
+
+<div id="dialogue-screen">
+  <div class="dlg-portrait-row" id="dlg-portraits"></div>
+  <div id="dlg-lines"></div>
+  <div class="dlg-continue" id="dlg-tap">TAP TO CONTINUE</div>
+</div>
+
+<div id="gameover-screen">
+  <div class="screen-title" style="color:#ff4444;text-shadow:0 0 20px #ff0000;">SHIP DESTROYED</div>
+  <div class="screen-crawl">The Empire wins this round.<br>But the brothers will return.</div>
+  <div class="hud-val" id="go-score" style="margin:8px 0;color:#fb923c;"></div>
+  <button class="big-btn" id="retry-btn">TRY AGAIN</button>
+</div>
+
+<div id="ending-screen">
+  <div id="ending-content"></div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+// ── Canvas ────────────────────────────────────────────────────
+var gc = document.getElementById('gc');
+var ctx = gc.getContext('2d');
+var W=0, H=0;
+function resize(){
+  W=gc.width=window.innerWidth;
+  H=gc.height=window.innerHeight;
+}
+resize();
+window.addEventListener('resize',resize);
+
+// Gunner arc canvas
+var arc = document.getElementById('gunner-arc-canvas');
+var actx = arc.getContext('2d');
+arc.width=160; arc.height=160;
+
+// ── Rounded rect ──────────────────────────────────────────────
+function rr(c,x,y,w,h,r){
+  r=Math.min(r,w/2,h/2);
+  c.beginPath();
+  c.moveTo(x+r,y); c.lineTo(x+w-r,y); c.arcTo(x+w,y,x+w,y+r,r);
+  c.lineTo(x+w,y+h-r); c.arcTo(x+w,y+h,x+w-r,y+h,r);
+  c.lineTo(x+r,y+h); c.arcTo(x,y+h,x,y+h-r,r);
+  c.lineTo(x,y+r); c.arcTo(x,y,x+r,y,r);
+  c.closePath();
+}
+
+// ── Stars ─────────────────────────────────────────────────────
+var stars=[];
+function initStars(){
+  stars=[];
+  for(var i=0;i<220;i++) stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.3+0.2,s:0.3+Math.random()*2.5,t:Math.random()*6.28});
+}
+function drawStars(){
+  for(var i=0;i<stars.length;i++){
+    var s=stars[i];
+    s.y+=s.s*0.4;
+    if(s.y>H) s.y=-4;
+    s.t+=0.02;
+    ctx.fillStyle='rgba(200,220,255,'+(0.3+0.4*Math.sin(s.t))+')';
+    ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,6.2832); ctx.fill();
+  }
+}
+
+// ── Game state ────────────────────────────────────────────────
+var GS={running:false,score:0,wave:1,shield:3,paused:false};
+var fc=0;
+
+// Force
+var force=0, maxForce=100;
+var forceReady=false;
+var forceWaveActive=false, forceWaveT=0;
+var forceBtnEl=document.getElementById('force-btn');
+
+// Ship — momentum physics
+var ship={
+  x:0, y:0, w:38, h:58,
+  vx:0, vy:0,           // velocity
+  ax:0, ay:0,           // acceleration this frame
+  THRUST:0.28,          // thruster force per frame
+  DRAG:0.97,            // momentum drag (close to 1 = floaty space feel)
+  MAXSPD:4.5,           // terminal velocity
+  invT:0,
+  hitFlash:0,
+  thrustL:false, thrustR:false, thrustU:false, thrustD:false, // which thrusters firing
+  engineFlicker:0
+};
+
+// Gunner
+var gunnerUnlocked=false;
+var gunnerAngle=0; // -PI/2 = straight up, range roughly -PI to 0
+var gunnerDragging=false;
+var gunnerTouchId=-1;
+
+// Bullets
+var bullets=[];
+// Asteroids
+var asteroids=[];
+// Particles
+var particles=[];
+// Shield orbs
+var shieldOrbs=[];
+// Force wave ring
+var forceRings=[];
+
+// Wave timing
+var waveT=0;
+var waveCleared=false;
+var asteroidCount=0;
+var asteroidsSpawned=0;
+var spawnTimer=0;
+var spawnInterval=90;
+var betweenWaves=false;
+
+// D-pad input
+var Kpad={up:false,down:false,left:false,right:false};
+
+// ── Dialogue data ─────────────────────────────────────────────
+var DIALOGUES=[
+  // Wave 1 intro
+  [{spk:'FLYNN',col:'#fb923c',txt:"Strap in. This field's dense. I've seen bigger ships eaten alive."},
+   {spk:'SLAYA',col:'#00d4ff',txt:"Flynn. Focus."},
+   {spk:'DUKE', col:'#22c55e',txt:"I've dodged worse in a back alley."},
+   {spk:'SCION',col:'#a855f7',txt:"Eyes forward, Duke."}],
+  // Wave 2
+  [{spk:'FLYNN',col:'#fb923c',txt:"Rocks incoming. Hold on to something."},
+   {spk:'SLAYA',col:'#00d4ff',txt:"We stay on course. No deviations."}],
+  // Wave 3
+  [{spk:'DUKE', col:'#22c55e',txt:"Getting thicker out there."},
+   {spk:'FLYNN',col:'#fb923c',txt:"Told you. Buckle up."},
+   {spk:'SCION',col:'#a855f7',txt:"How much further?"},
+   {spk:'SLAYA',col:'#00d4ff',txt:"Far enough. Keep moving."}],
+  // Wave 4 — Duke joins gunner
+  [{spk:'FLYNN',col:'#fb923c',txt:"Can either of you shoot?"},
+   {spk:'DUKE', col:'#22c55e',txt:"I'm good with a blaster."},
+   {spk:'FLYNN',col:'#fb923c',txt:"Gunner seat's open."},
+   {spk:'DUKE', col:'#22c55e',txt:"Say less."}],
+  // Wave 5
+  [{spk:'SLAYA',col:'#00d4ff',txt:"Duke. Try not to blow up my ship."},
+   {spk:'DUKE', col:'#22c55e',txt:"No promises."},
+   {spk:'FLYNN',col:'#fb923c',txt:"He's actually decent."}],
+  // Wave 6 — Force wave unlocks
+  [{spk:'SCION',col:'#a855f7',txt:"I can feel the field. The density. There's a pattern."},
+   {spk:'SLAYA',col:'#00d4ff',txt:"Then use it. Whatever you're doing — do it."},
+   {spk:'SCION',col:'#a855f7',txt:"It'll cost me everything I have."},
+   {spk:'DUKE', col:'#22c55e',txt:"Do it anyway, brother."}],
+  // Wave 7
+  [{spk:'FLYNN',col:'#fb923c',txt:"Halfway through. Don't celebrate yet."},
+   {spk:'SCION',col:'#a855f7',txt:"How do you do this for a living?"},
+   {spk:'FLYNN',col:'#fb923c',txt:"Badly. But alive."}],
+  // Wave 8
+  [{spk:'SLAYA',col:'#00d4ff',txt:"Jump coordinates are locked. We just need to survive the field."},
+   {spk:'DUKE', col:'#22c55e',txt:"So — what's the price again?"},
+   {spk:'SLAYA',col:'#00d4ff',txt:"More than you have. Keep shooting."}],
+  // Wave 9
+  [{spk:'FLYNN',col:'#fb923c',txt:"This is the worst of it. Last dense cluster before clear space."},
+   {spk:'SCION',col:'#a855f7',txt:"I can sense the edge of the field."},
+   {spk:'DUKE', col:'#22c55e',txt:"Then let's blow through it."}],
+  // Wave 10 final
+  [{spk:'SLAYA',col:'#00d4ff',txt:"Final push. Survive this and we jump."},
+   {spk:'FLYNN',col:'#fb923c',txt:"Jump drive is warm. Don't get us killed."},
+   {spk:'DUKE', col:'#22c55e',txt:"Scion. Ready?"},
+   {spk:'SCION',col:'#a855f7',txt:"Born ready."}]
+];
+
+// ── Portrait drawing ──────────────────────────────────────────
+function drawPortraitScion(c,x,y,sz){
+  // Tall, blue, Jedi-ish
+  c.save();
+  c.fillStyle='#1a2d40'; rr(c,x,y,sz,sz,8); c.fill();
+  c.strokeStyle='#00d4ff'; c.lineWidth=1.5; c.stroke();
+  // Head
+  var hg=c.createRadialGradient(x+sz/2,y+sz*0.28,2,x+sz/2,y+sz*0.28,sz*0.18);
+  hg.addColorStop(0,'#c8e8f8'); hg.addColorStop(1,'#5a8aaa');
+  rr(c,x+sz*0.28,y+sz*0.1,sz*0.44,sz*0.36,sz*0.1); c.fillStyle=hg; c.fill();
+  // Eyes
+  c.fillStyle='#00d4ff'; c.fillRect(x+sz*0.32,y+sz*0.22,sz*0.1,sz*0.07); c.fillRect(x+sz*0.58,y+sz*0.22,sz*0.1,sz*0.07);
+  // Body
+  var bg=c.createLinearGradient(x,y+sz*0.45,x,y+sz);
+  bg.addColorStop(0,'#1a2d40'); bg.addColorStop(1,'#0a1520');
+  rr(c,x+sz*0.18,y+sz*0.45,sz*0.64,sz*0.5,4); c.fillStyle=bg; c.fill(); c.strokeStyle='#00d4ff'; c.lineWidth=1; c.stroke();
+  // Saber glow
+  c.strokeStyle='#00d4ff'; c.lineWidth=2; c.shadowColor='#00d4ff'; c.shadowBlur=8;
+  c.beginPath(); c.moveTo(x+sz*0.72,y+sz*0.48); c.lineTo(x+sz*0.85,y+sz*0.1); c.stroke();
+  c.restore();
+}
+function drawPortraitDuke(c,x,y,sz){
+  c.save();
+  c.fillStyle='#0a2a0a'; rr(c,x,y,sz,sz,8); c.fill();
+  c.strokeStyle='#22c55e'; c.lineWidth=1.5; c.stroke();
+  // Head stocky
+  var hg=c.createRadialGradient(x+sz/2,y+sz*0.26,2,x+sz/2,y+sz*0.26,sz*0.16);
+  hg.addColorStop(0,'#4ade80'); hg.addColorStop(1,'#166534');
+  rr(c,x+sz*0.25,y+sz*0.1,sz*0.5,sz*0.32,sz*0.1); c.fillStyle=hg; c.fill();
+  c.fillStyle='#00d4ff'; c.fillRect(x+sz*0.3,y+sz*0.2,sz*0.1,sz*0.07); c.fillRect(x+sz*0.6,y+sz*0.2,sz*0.1,sz*0.07);
+  // Body wide
+  var bg=c.createLinearGradient(x,y+sz*0.42,x,y+sz);
+  bg.addColorStop(0,'#1a4a1a'); bg.addColorStop(1,'#0a2a0a');
+  rr(c,x+sz*0.15,y+sz*0.42,sz*0.7,sz*0.52,4); c.fillStyle=bg; c.fill(); c.strokeStyle='#22c55e'; c.lineWidth=1; c.stroke();
+  // Blaster
+  c.fillStyle='#334455'; c.fillRect(x+sz*0.68,y+sz*0.52,sz*0.22,sz*0.08);
+  c.strokeStyle='#22c55e'; c.lineWidth=1; c.strokeRect(x+sz*0.68,y+sz*0.52,sz*0.22,sz*0.08);
+  c.restore();
+}
+function drawPortraitSlaya(c,x,y,sz){
+  c.save();
+  c.fillStyle='#000d1a'; rr(c,x,y,sz,sz,8); c.fill();
+  c.strokeStyle='#00d4ff'; c.lineWidth=1.5; c.stroke();
+  // Elegant head
+  var hg=c.createRadialGradient(x+sz/2,y+sz*0.26,2,x+sz/2,y+sz*0.26,sz*0.16);
+  hg.addColorStop(0,'#fce7d6'); hg.addColorStop(1,'#c8906a');
+  rr(c,x+sz*0.28,y+sz*0.08,sz*0.44,sz*0.36,sz*0.12); c.fillStyle=hg; c.fill();
+  // Hair sweep
+  c.fillStyle='#1a0a00';
+  c.beginPath(); c.ellipse(x+sz*0.68,y+sz*0.18,sz*0.14,sz*0.22,0.5,0,6.28); c.fill();
+  // Diplomatic robe
+  var bg=c.createLinearGradient(x,y+sz*0.44,x,y+sz);
+  bg.addColorStop(0,'#e8eef8'); bg.addColorStop(1,'#9aaabb');
+  rr(c,x+sz*0.16,y+sz*0.44,sz*0.68,sz*0.52,4); c.fillStyle=bg; c.fill();
+  // Trim
+  c.strokeStyle='#00d4ff'; c.lineWidth=1; c.stroke();
+  c.fillStyle='rgba(0,212,255,0.3)'; c.fillRect(x+sz*0.16,y+sz*0.44,sz*0.68,3);
+  c.restore();
+}
+function drawPortraitFlynn(c,x,y,sz){
+  // Alien gorilla-ish pilot
+  c.save();
+  c.fillStyle='#0a0a08'; rr(c,x,y,sz,sz,8); c.fill();
+  c.strokeStyle='#fb923c'; c.lineWidth=1.5; c.stroke();
+  // Big head
+  var hg=c.createRadialGradient(x+sz/2,y+sz*0.3,3,x+sz/2,y+sz*0.3,sz*0.25);
+  hg.addColorStop(0,'#5a4030'); hg.addColorStop(1,'#2a1a0a');
+  c.beginPath(); c.ellipse(x+sz/2,y+sz*0.3,sz*0.32,sz*0.28,0,0,6.28); c.fillStyle=hg; c.fill();
+  // Prominent brow ridge
+  c.fillStyle='#1a0a00';
+  c.beginPath(); c.ellipse(x+sz/2,y+sz*0.18,sz*0.3,sz*0.1,0,0,6.28); c.fill();
+  // Small eyes deep set
+  c.fillStyle='#ffaa44';
+  c.beginPath(); c.arc(x+sz*0.38,y+sz*0.27,sz*0.04,0,6.28); c.fill();
+  c.beginPath(); c.arc(x+sz*0.62,y+sz*0.27,sz*0.04,0,6.28); c.fill();
+  // Wide nose/snout
+  c.fillStyle='#3a2010';
+  c.beginPath(); c.ellipse(x+sz/2,y+sz*0.38,sz*0.1,sz*0.07,0,0,6.28); c.fill();
+  // Pilot jacket
+  var bg=c.createLinearGradient(x,y+sz*0.52,x,y+sz);
+  bg.addColorStop(0,'#2a1a08'); bg.addColorStop(1,'#150d04');
+  rr(c,x+sz*0.12,y+sz*0.52,sz*0.76,sz*0.46,4); c.fillStyle=bg; c.fill();
+  c.strokeStyle='#fb923c'; c.lineWidth=1; c.stroke();
+  // Broad shoulders
+  c.fillStyle='#fb923c';
+  c.fillRect(x+sz*0.12,y+sz*0.52,sz*0.76,3);
+  c.restore();
+}
+
+// ── Draw ship ─────────────────────────────────────────────────
+function drawShip(){
+  var inv = ship.invT>0 && Math.floor(ship.invT/4)%2===0;
+  if(inv) return;
+  var cx=Math.round(ship.x), cy=Math.round(ship.y);
+  var w=ship.w, h=ship.h;
+
+  ctx.save();
+  if(ship.hitFlash>0){ ctx.shadowColor='#ff4444'; ctx.shadowBlur=35; ship.hitFlash--; }
+
+  var flicker=ship.engineFlicker;
+
+  // ── Main engine (tail) — idle burn, FLARES when thrusting forward (up) ──
+  var mainOn = ship.thrustU;
+  var eH = mainOn ? 18+Math.sin(flicker*0.8)*7 : 5+Math.sin(flicker*0.8)*2;
+  var eAlpha = mainOn ? 0.95 : 0.35;
+  var eg=ctx.createLinearGradient(cx,cy+h*0.5,cx,cy+h*0.5+eH+10);
+  eg.addColorStop(0,'rgba(80,160,255,'+eAlpha+')'); eg.addColorStop(1,'rgba(0,30,120,0)');
+  ctx.fillStyle=eg;
+  ctx.beginPath();
+  ctx.moveTo(cx-(mainOn?8:4),cy+h*0.44);
+  ctx.lineTo(cx,cy+h*0.5+eH);
+  ctx.lineTo(cx+(mainOn?8:4),cy+h*0.44);
+  ctx.closePath(); ctx.fill();
+  // Hot core flame — only when burning hard
+  if(mainOn){
+    var eg2=ctx.createLinearGradient(cx,cy+h*0.46,cx,cy+h*0.5+eH*0.6);
+    eg2.addColorStop(0,'rgba(220,240,255,0.85)'); eg2.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=eg2;
+    ctx.beginPath();
+    ctx.moveTo(cx-3,cy+h*0.46);
+    ctx.lineTo(cx,cy+h*0.5+eH*0.6);
+    ctx.lineTo(cx+3,cy+h*0.46);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // ── Retro thrusters (nose) — fire when BRAKING (thrust down) ──
+  var tLen=12+Math.random()*5;
+  if(ship.thrustD){
+    ctx.fillStyle='rgba(120,200,255,0.7)';
+    // Twin retro jets angled forward from the nose shoulders
+    ctx.beginPath(); ctx.moveTo(cx-w*0.14,cy-h*0.3); ctx.lineTo(cx-w*0.14-3,cy-h*0.3-tLen); ctx.lineTo(cx-w*0.14+5,cy-h*0.3); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(cx+w*0.14,cy-h*0.3); ctx.lineTo(cx+w*0.14+3,cy-h*0.3-tLen); ctx.lineTo(cx+w*0.14-5,cy-h*0.3); ctx.closePath(); ctx.fill();
+  }
+
+  // ── Side RCS thrusters — exhaust fires opposite of travel direction ──
+  // Moving right = left-side thruster fires exhaust to the LEFT
+  if(ship.thrustR){
+    ctx.fillStyle='rgba(120,200,255,0.65)';
+    ctx.beginPath(); ctx.moveTo(cx-w*0.45,cy-4); ctx.lineTo(cx-w*0.45-tLen,cy); ctx.lineTo(cx-w*0.45,cy+4); ctx.closePath(); ctx.fill();
+  }
+  // Moving left = right-side thruster fires exhaust to the RIGHT
+  if(ship.thrustL){
+    ctx.fillStyle='rgba(120,200,255,0.65)';
+    ctx.beginPath(); ctx.moveTo(cx+w*0.45,cy-4); ctx.lineTo(cx+w*0.45+tLen,cy); ctx.lineTo(cx+w*0.45,cy+4); ctx.closePath(); ctx.fill();
+  }
+
+  // ── Hull — angular futuristic fighter ───────────────────────
+  ctx.shadowColor='rgba(100,180,255,0.5)'; ctx.shadowBlur=12;
+
+  // Fuselage (narrow elongated body)
+  var fuseG=ctx.createLinearGradient(cx-w*0.18,cy,cx+w*0.18,cy);
+  fuseG.addColorStop(0,'#5a7090'); fuseG.addColorStop(0.35,'#c8d8ea'); fuseG.addColorStop(0.65,'#e8f0f8'); fuseG.addColorStop(1,'#5a7090');
+  ctx.fillStyle=fuseG;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy-h*0.5);           // nose tip
+  ctx.lineTo(cx+w*0.18, cy-h*0.15);   // upper shoulder R
+  ctx.lineTo(cx+w*0.2,  cy+h*0.35);   // lower flank R
+  ctx.lineTo(cx,        cy+h*0.44);   // tail center
+  ctx.lineTo(cx-w*0.2,  cy+h*0.35);   // lower flank L
+  ctx.lineTo(cx-w*0.18, cy-h*0.15);   // upper shoulder L
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle='rgba(160,210,255,0.6)'; ctx.lineWidth=1; ctx.stroke();
+
+  // Swept wings
+  var wingG=ctx.createLinearGradient(cx,cy,cx+w,cy);
+  wingG.addColorStop(0,'#8090a8'); wingG.addColorStop(1,'#3a4858');
+  ctx.fillStyle=wingG;
+  // Right wing
+  ctx.beginPath();
+  ctx.moveTo(cx+w*0.16, cy+h*0.0);
+  ctx.lineTo(cx+w*0.5,  cy+h*0.12);
+  ctx.lineTo(cx+w*0.48, cy+h*0.4);
+  ctx.lineTo(cx+w*0.2,  cy+h*0.38);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle='rgba(140,200,255,0.4)'; ctx.lineWidth=1; ctx.stroke();
+  // Left wing (mirror)
+  ctx.beginPath();
+  ctx.moveTo(cx-w*0.16, cy+h*0.0);
+  ctx.lineTo(cx-w*0.5,  cy+h*0.12);
+  ctx.lineTo(cx-w*0.48, cy+h*0.4);
+  ctx.lineTo(cx-w*0.2,  cy+h*0.38);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle='rgba(140,200,255,0.4)'; ctx.lineWidth=1; ctx.stroke();
+
+  // Wing tip accent lights
+  ctx.fillStyle='rgba(100,200,255,0.8)'; ctx.shadowColor='#00aaff'; ctx.shadowBlur=8;
+  ctx.beginPath(); ctx.arc(cx+w*0.5,cy+h*0.12,2.5,0,6.2832); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx-w*0.5,cy+h*0.12,2.5,0,6.2832); ctx.fill();
+
+  // Canopy
+  ctx.shadowBlur=0;
+  var capG=ctx.createLinearGradient(cx-w*0.12,cy-h*0.38,cx+w*0.12,cy-h*0.05);
+  capG.addColorStop(0,'rgba(180,230,255,0.5)'); capG.addColorStop(1,'rgba(40,80,140,0.3)');
+  ctx.fillStyle=capG;
+  ctx.strokeStyle='rgba(160,220,255,0.7)'; ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy-h*0.5+4);
+  ctx.lineTo(cx+w*0.1, cy-h*0.18);
+  ctx.lineTo(cx-w*0.1, cy-h*0.18);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  // Canopy glint
+  ctx.fillStyle='rgba(255,255,255,0.45)';
+  ctx.beginPath(); ctx.moveTo(cx-2,cy-h*0.44); ctx.lineTo(cx+3,cy-h*0.44); ctx.lineTo(cx+w*0.06,cy-h*0.28); ctx.lineTo(cx-w*0.06,cy-h*0.28); ctx.closePath(); ctx.fill();
+
+  // Hull panel lines
+  ctx.strokeStyle='rgba(80,140,200,0.3)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(cx,cy-h*0.28); ctx.lineTo(cx,cy+h*0.38); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx-w*0.16,cy+h*0.05); ctx.lineTo(cx+w*0.16,cy+h*0.05); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx-w*0.17,cy+h*0.22); ctx.lineTo(cx+w*0.17,cy+h*0.22); ctx.stroke();
+
+  // Nose sensor dot
+  ctx.fillStyle='#88ddff'; ctx.shadowColor='#00d4ff'; ctx.shadowBlur=6;
+  ctx.beginPath(); ctx.arc(cx,cy-h*0.5+2,2,0,6.2832); ctx.fill();
+
+  ctx.restore();
+}
+
+// ── Draw asteroid ─────────────────────────────────────────────
+function drawAsteroid(a){
+  var x=Math.round(a.x-cam_x), y=Math.round(a.y);
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(a.rot);
+  ctx.fillStyle='#4a4a55';
+  ctx.strokeStyle='rgba(160,160,180,0.4)'; ctx.lineWidth=1;
+  ctx.beginPath();
+  for(var i=0;i<a.pts.length;i++){
+    var px2=a.pts[i][0], py2=a.pts[i][1];
+    if(i===0) ctx.moveTo(px2,py2); else ctx.lineTo(px2,py2);
+  }
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  // Highlight facet
+  ctx.fillStyle='rgba(200,200,220,0.12)';
+  ctx.beginPath();
+  if(a.pts.length>2){
+    ctx.moveTo(a.pts[0][0],a.pts[0][1]);
+    ctx.lineTo(a.pts[1][0]*0.6,a.pts[1][1]*0.6);
+    ctx.lineTo(a.pts[2][0]*0.5,a.pts[2][1]*0.5);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// Generate asteroid point cloud
+function makeAsteroidPts(r){
+  var pts=[], n=7+Math.floor(Math.random()*5);
+  for(var i=0;i<n;i++){
+    var ang=(i/n)*6.2832;
+    var rad=r*(0.65+Math.random()*0.45);
+    pts.push([Math.cos(ang)*rad, Math.sin(ang)*rad]);
+  }
+  return pts;
+}
+
+function spawnAsteroid(large){
+  var r = large ? 28+Math.random()*18 : 10+Math.random()*10;
+  var ax = Math.random()*(W-40)+20;
+  asteroids.push({
+    x:ax, y:-r-10,
+    vx:(Math.random()-0.5)*1.2,
+    vy: 1.2+Math.random()*1.8+(GS.wave*0.12),
+    r:r, large:large,
+    hp: large?3:1,
+    rot:0, rotSpd:(Math.random()-0.5)*0.04,
+    pts: makeAsteroidPts(r),
+    hit:0
+  });
+}
+
+// ── Bullets ───────────────────────────────────────────────────
+function fireBullet(fromX,fromY,vx,vy,isGunner){
+  bullets.push({x:fromX,y:fromY,vx:vx,vy:vy,gunner:isGunner,life:120});
+}
+
+var shootTimer=0;
+function doShoot(){
+  // Flynn: straight up
+  fireBullet(ship.x,ship.y-ship.h/2-4, 0,-12, false);
+  // Duke gunner: angled shot (when unlocked)
+  if(gunnerUnlocked){
+    var spd=11;
+    var gvx=Math.cos(gunnerAngle)*spd;
+    var gvy=Math.sin(gunnerAngle)*spd;
+    fireBullet(ship.x+ship.w/2-6,ship.y-4, gvx,gvy, true);
+    fireBullet(ship.x-ship.w/2+6,ship.y-4,-gvx,gvy, true);
+  }
+}
+
+// ── Particles ─────────────────────────────────────────────────
+function spawnParts(x,y,col,n,spd,life){
+  for(var i=0;i<n;i++){
+    var ang=Math.random()*6.2832, s=Math.random()*spd;
+    particles.push({x:x,y:y,vx:Math.cos(ang)*s,vy:Math.sin(ang)*s,col:col,life:life,maxLife:life,r:Math.random()*2.5+0.8});
+  }
+}
+
+// ── Shield orbs ───────────────────────────────────────────────
+function spawnShieldOrb(x,y){
+  shieldOrbs.push({x:x,y:y,vy:1.5,t:0,r:8});
+}
+
+// ── Force wave ────────────────────────────────────────────────
+function triggerForceWave(){
+  if(!forceReady||forceWaveActive) return;
+  forceWaveActive=true; forceWaveT=0;
+  force=Math.max(0,force-85);
+  forceReady=false;
+  forceBtnEl.classList.remove('ready');
+  spawnParts(ship.x,ship.y,'#a855f7',20,5,30);
+  spawnParts(ship.x,ship.y,'#e9d5ff',10,8,20);
+}
+
+// ── Gunner arc UI ──────────────────────────────────────────────
+var cam_x=0; // unused but kept for drawAsteroid compat
+
+function drawGunnerArc(){
+  actx.clearRect(0,0,160,160);
+  if(!gunnerUnlocked) return;
+  var cx=80, cy=80, rad=62;
+  actx.save();
+
+  // Outer dim ring — full 360
+  actx.strokeStyle='rgba(34,197,94,0.15)'; actx.lineWidth=16;
+  actx.beginPath(); actx.arc(cx,cy,rad,0,6.2832); actx.stroke();
+
+  // Active ring border — full 360
+  actx.strokeStyle='rgba(34,197,94,0.45)'; actx.lineWidth=2;
+  actx.beginPath(); actx.arc(cx,cy,rad,0,6.2832); actx.stroke();
+
+  // Center hub
+  actx.fillStyle='rgba(34,197,94,0.15)';
+  actx.beginPath(); actx.arc(cx,cy,10,0,6.2832); actx.fill();
+  actx.strokeStyle='rgba(34,197,94,0.5)'; actx.lineWidth=1;
+  actx.stroke();
+
+  // Tick marks at cardinal points
+  actx.strokeStyle='rgba(34,197,94,0.3)'; actx.lineWidth=1.5;
+  for(var t=0;t<8;t++){
+    var ta=t*6.2832/8;
+    var inner=t%2===0?rad-10:rad-6;
+    actx.beginPath();
+    actx.moveTo(cx+Math.cos(ta)*inner, cy+Math.sin(ta)*inner);
+    actx.lineTo(cx+Math.cos(ta)*(rad+1), cy+Math.sin(ta)*(rad+1));
+    actx.stroke();
+  }
+
+  // Aim line from center
+  actx.strokeStyle='#22c55e'; actx.lineWidth=2;
+  actx.shadowColor='#22c55e'; actx.shadowBlur=8;
+  actx.beginPath();
+  actx.moveTo(cx,cy);
+  actx.lineTo(cx+Math.cos(gunnerAngle)*rad, cy+Math.sin(gunnerAngle)*rad);
+  actx.stroke();
+
+  // Drag knob on ring
+  var kx=cx+Math.cos(gunnerAngle)*rad, ky=cy+Math.sin(gunnerAngle)*rad;
+  actx.fillStyle='#22c55e'; actx.shadowBlur=12;
+  actx.beginPath(); actx.arc(kx,ky,10,0,6.2832); actx.fill();
+  actx.fillStyle='#fff'; actx.shadowBlur=0;
+  actx.beginPath(); actx.arc(kx,ky,3.5,0,6.2832); actx.fill();
+
+  // DUKE label centered
+  actx.font='bold 8px monospace'; actx.fillStyle='rgba(34,197,94,0.65)';
+  actx.textAlign='center'; actx.shadowBlur=0;
+  actx.fillText('DUKE',cx,cy+4);
+
+  actx.restore();
+}
+
+// ── Touch input ───────────────────────────────────────────────
+// ── D-pad bindings ────────────────────────────────────────────
+function bindDpad(id,key){
+  var el=document.getElementById(id);
+  el.addEventListener('touchstart',function(e){e.preventDefault();Kpad[key]=true;el.classList.add('on');},{passive:false});
+  el.addEventListener('touchend',  function(e){e.preventDefault();Kpad[key]=false;el.classList.remove('on');},{passive:false});
+  el.addEventListener('touchcancel',function(){Kpad[key]=false;el.classList.remove('on');},{passive:false});
+}
+bindDpad('du','up'); bindDpad('dd','down'); bindDpad('dl','left'); bindDpad('dr','right');
+
+// Gunner arc touch — non-passive so preventDefault blocks gc canvas interference
+arc.addEventListener('touchstart',function(e){
+  e.preventDefault();
+  e.stopPropagation();
+  var t=e.changedTouches[0];
+  gunnerDragging=true; gunnerTouchId=t.identifier;
+  updateGunnerAngle(t.clientX,t.clientY);
+},{passive:false});
+arc.addEventListener('touchmove',function(e){
+  e.preventDefault();
+  e.stopPropagation();
+  for(var i=0;i<e.changedTouches.length;i++){
+    var t=e.changedTouches[i];
+    if(t.identifier===gunnerTouchId) updateGunnerAngle(t.clientX,t.clientY);
+  }
+},{passive:false});
+arc.addEventListener('touchend',function(e){
+  e.preventDefault();
+  gunnerDragging=false; gunnerTouchId=-1;
+},{passive:false});
+arc.addEventListener('touchcancel',function(){
+  gunnerDragging=false; gunnerTouchId=-1;
+},{passive:false});
+
+// Keyboard
+var keys={};
+window.addEventListener('keydown',function(e){
+  keys[e.key]=true;
+  if(e.key==='ArrowUp') Kpad.up=true;
+  if(e.key==='ArrowDown') Kpad.down=true;
+  if(e.key==='ArrowLeft') Kpad.left=true;
+  if(e.key==='ArrowRight') Kpad.right=true;
+  if(e.key===' ') triggerForceWave();
+});
+window.addEventListener('keyup',function(e){
+  keys[e.key]=false;
+  if(e.key==='ArrowUp') Kpad.up=false;
+  if(e.key==='ArrowDown') Kpad.down=false;
+  if(e.key==='ArrowLeft') Kpad.left=false;
+  if(e.key==='ArrowRight') Kpad.right=false;
+});
+
+// Gunner arc mouse (desktop)
+arc.addEventListener('mousemove',function(e){ if(e.buttons) updateGunnerAngle(e.clientX,e.clientY); });
+arc.addEventListener('mousedown',function(e){ updateGunnerAngle(e.clientX,e.clientY); });
+
+function updateGunnerAngle(cx,cy){
+  // Get exact canvas position from DOM — reliable on all devices
+  var rect=arc.getBoundingClientRect();
+  var ox=rect.left+rect.width/2;
+  var oy=rect.top+rect.height/2;
+  gunnerAngle=Math.atan2(cy-oy, cx-ox);
+}
+
+// Force button
+forceBtnEl.addEventListener('touchstart',function(e){
+  e.preventDefault();
+  if(forceReady) triggerForceWave();
+  forceBtnEl.classList.add('on');
+},{passive:false});
+forceBtnEl.addEventListener('touchend',function(){ forceBtnEl.classList.remove('on'); },{passive:true});
+forceBtnEl.addEventListener('click',function(){ if(forceReady) triggerForceWave(); });
+
+// ── Collision ─────────────────────────────────────────────────
+function circleRect(cx,cy,cr,rx,ry,rw,rh){
+  var nx=Math.max(rx,Math.min(rx+rw,cx));
+  var ny=Math.max(ry,Math.min(ry+rh,cy));
+  var dx=cx-nx, dy=cy-ny;
+  return dx*dx+dy*dy < cr*cr;
+}
+function circlePt(ax,ay,ar,bx,by,br){
+  var dx=ax-bx, dy=ay-by;
+  return Math.sqrt(dx*dx+dy*dy)<ar+br;
+}
+
+// ── Wave config ───────────────────────────────────────────────
+function waveConfig(w){
+  var large = 1 + Math.floor(w/2);        // wave 1 starts with 1 large
+  var small = 12 + w*4;                   // wave 1: 16 smalls, scales up
+  var interval = Math.max(22, 70 - w*5);  // spawn pace tightens each wave
+  return {large:large, small:small, total:large+small, interval:interval};
+}
+
+// ── Dialogue ──────────────────────────────────────────────────
+var dlgLines=[];
+var dlgIdx=0;
+var dlgCallback=null;
+
+function showDialogue(lines, cb){
+  dlgLines=lines; dlgIdx=0; dlgCallback=cb;
+  GS.paused=true;
+  renderDlgLine();
+  document.getElementById('dialogue-screen').style.display='flex';
+}
+
+function renderDlgLine(){
+  var l=dlgLines[dlgIdx];
+  var linesEl=document.getElementById('dlg-lines');
+  linesEl.innerHTML='';
+  var spk=document.createElement('div');
+  spk.className='dlg-speaker';
+  spk.style.color=l.col;
+  spk.textContent=l.spk;
+  var txt=document.createElement('div');
+  txt.className='dlg-line';
+  txt.style.borderLeft='3px solid '+l.col;
+  txt.style.paddingLeft='12px';
+  txt.textContent=l.txt;
+  linesEl.appendChild(spk);
+  linesEl.appendChild(txt);
+
+  // Portrait row
+  var row=document.getElementById('dlg-portraits');
+  row.innerHTML='';
+  var chars=[
+    {name:'FLYNN',fn:drawPortraitFlynn,col:'#fb923c'},
+    {name:'SLAYA',fn:drawPortraitSlaya,col:'#00d4ff'},
+    {name:'SCION',fn:drawPortraitScion,col:'#a855f7'},
+    {name:'DUKE', fn:drawPortraitDuke, col:'#22c55e'}
+  ];
+  for(var i=0;i<chars.length;i++){
+    var ch=chars[i];
+    var wrap=document.createElement('div');
+    wrap.className='dlg-portrait';
+    var pc=document.createElement('canvas');
+    pc.width=52; pc.height=52;
+    pc.style.width='52px'; pc.style.height='52px';
+    pc.style.opacity = (l.spk===ch.name) ? '1' : '0.35';
+    pc.style.border = (l.spk===ch.name) ? '2px solid '+ch.col : '1px solid rgba(180,210,255,0.1)';
+    ch.fn(pc.getContext('2d'),0,0,52);
+    var nm=document.createElement('div');
+    nm.className='dlg-portrait-name';
+    nm.textContent=ch.name;
+    nm.style.color=ch.col;
+    wrap.appendChild(pc); wrap.appendChild(nm);
+    row.appendChild(wrap);
+  }
+}
+
+function advanceDlg(){
+  dlgIdx++;
+  if(dlgIdx>=dlgLines.length){
+    document.getElementById('dialogue-screen').style.display='none';
+    GS.paused=false;
+    if(dlgCallback) dlgCallback();
+    dlgCallback=null;
+  } else {
+    renderDlgLine();
+  }
+}
+document.getElementById('dialogue-screen').addEventListener('click',advanceDlg);
+document.getElementById('dialogue-screen').addEventListener('touchstart',function(e){ e.preventDefault(); advanceDlg(); },{passive:false});
+
+// ── HUD update ────────────────────────────────────────────────
+function updateHUD(){
+  document.getElementById('score-display').textContent=String(GS.score).padStart(5,'0');
+  document.getElementById('wave-lbl').textContent='WAVE '+GS.wave;
+  for(var i=0;i<3;i++){
+    document.getElementById('sh'+i).className='sh-pip'+(i>=GS.shield?' dead':'');
+  }
+  document.getElementById('force-bar-fill').style.width=(force/maxForce*100)+'%';
+}
+
+// ── Wave management ───────────────────────────────────────────
+var waveAsteroidsLeft=0;
+var waveCfg={};
+
+function startWave(w){
+  GS.wave=w; waveT=0; waveCleared=false;
+  asteroidsSpawned=0; betweenWaves=false;
+  waveCfg=waveConfig(w);
+  waveAsteroidsLeft=waveCfg.total;
+  spawnTimer=0;
+  updateHUD();
+  // Unlock gunner at wave 4
+  if(w>=4 && !gunnerUnlocked){
+    gunnerUnlocked=true;
+    arc.style.display='block';
+    gunnerAngle=-1.57; // straight up initially
+    drawGunnerArc();
+  }
+  // Unlock force wave at wave 6
+  if(w>=6){
+    forceBtnEl.style.display='flex';
+    forceBtnEl.style.right=(gunnerUnlocked?'150px':'14px');
+  }
+}
+
+function onWaveCleared(){
+  waveCleared=true;
+  betweenWaves=true;
+  // Bonus score
+  GS.score+=500+GS.wave*100;
+  updateHUD();
+
+  if(GS.wave>=10){
+    // Trigger ending
+    setTimeout(startEnding,600);
+    return;
+  }
+
+  // Show dialogue for the UPCOMING wave then start it
+  var dlg=DIALOGUES[Math.min(GS.wave,DIALOGUES.length-1)];
+  showDialogue(dlg,function(){
+    GS.wave++;
+    startWave(GS.wave);
+  });
+}
+
+// ── Ending sequence ───────────────────────────────────────────
+function startEnding(){
+  GS.running=false;
+  document.getElementById('ending-screen').style.display='flex';
+  var ec=document.getElementById('ending-content');
+  ec.innerHTML='';
+  ec.style.cssText='display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;';
+
+  // FTL flash
+  var flash=document.createElement('div');
+  flash.style.cssText='position:fixed;inset:0;background:#fff;z-index:200;opacity:0;transition:opacity 0.08s;';
+  document.body.appendChild(flash);
+  setTimeout(function(){ flash.style.opacity='1'; },200);
+  setTimeout(function(){ flash.style.opacity='0'; },500);
+  setTimeout(function(){ document.body.removeChild(flash); },900);
+
+  // Render ending
+  setTimeout(function(){
+    var lines=[
+      {col:'#00d4ff',spk:'SLAYA', txt:'Jump complete. We\'re clear of the system.'},
+      {col:'#fb923c',spk:'FLYNN', txt:'...I can\'t believe that worked.'},
+      {col:'#22c55e',spk:'DUKE',  txt:'Pay the man, Scion.'},
+      {col:'#a855f7',spk:'SCION', txt:'Worth every credit.'},
+      {col:'#00d4ff',spk:'SLAYA', txt:'Don\'t get sentimental. Where do you need to be?'}
+    ];
+
+    ec.innerHTML='<div style="font-size:clamp(18px,5vw,34px);font-weight:900;color:#e0e8ff;font-family:monospace;text-align:center;letter-spacing:3px;text-shadow:0 0 30px #6688ff;margin-bottom:6px;">CLEAR.</div>';
+    ec.innerHTML+='<div style="font-size:10px;letter-spacing:4px;color:rgba(180,210,255,0.5);font-family:monospace;margin-bottom:24px;">ASTEROID FIELD — CLEARED</div>';
+
+    var scoreDiv=document.createElement('div');
+    scoreDiv.style.cssText='color:#fb923c;font-family:monospace;font-size:16px;margin-bottom:24px;text-shadow:0 0 10px #fb923c;';
+    scoreDiv.textContent='FINAL SCORE: '+String(GS.score).padStart(6,'0');
+    ec.appendChild(scoreDiv);
+
+    // Portrait row
+    var prow=document.createElement('div');
+    prow.style.cssText='display:flex;gap:12px;margin-bottom:20px;';
+    var chars=[
+      {name:'SLAYA',fn:drawPortraitSlaya,col:'#00d4ff'},
+      {name:'DUKE', fn:drawPortraitDuke, col:'#22c55e'},
+      {name:'SCION',fn:drawPortraitScion,col:'#a855f7'},
+      {name:'FLYNN',fn:drawPortraitFlynn,col:'#fb923c'}
+    ];
+    for(var i=0;i<chars.length;i++){
+      var ch=chars[i];
+      var wrap=document.createElement('div');
+      wrap.style.cssText='display:flex;flex-direction:column;align-items:center;gap:3px;';
+      var pc=document.createElement('canvas');
+      pc.width=56; pc.height=56;
+      pc.style.cssText='width:56px;height:56px;border-radius:8px;border:1px solid '+ch.col+';box-shadow:0 0 10px '+ch.col+'44;';
+      ch.fn(pc.getContext('2d'),0,0,56);
+      var nm=document.createElement('div');
+      nm.style.cssText='font-size:7px;letter-spacing:2px;color:'+ch.col+';font-family:monospace;';
+      nm.textContent=ch.name;
+      wrap.appendChild(pc); wrap.appendChild(nm);
+      prow.appendChild(wrap);
+    }
+    ec.appendChild(prow);
+
+    // Outro dialogue lines
+    for(var li=0;li<lines.length;li++){
+      (function(line){
+        var div=document.createElement('div');
+        div.style.cssText='max-width:300px;font-family:monospace;font-size:11px;line-height:1.7;color:#e0e8ff;margin:3px 0;border-left:3px solid '+line.col+';padding-left:10px;opacity:0;transition:opacity 0.5s;';
+        var spkEl=document.createElement('div');
+        spkEl.style.cssText='font-size:8px;letter-spacing:2px;color:'+line.col+';margin-bottom:2px;';
+        spkEl.textContent=line.spk;
+        div.appendChild(spkEl);
+        div.appendChild(document.createTextNode(line.txt));
+        ec.appendChild(div);
+        setTimeout(function(){ div.style.opacity='1'; },200);
+      })(lines[li]);
+    }
+
+    // Play again
+    var again=document.createElement('button');
+    again.className='big-btn';
+    again.textContent='PLAY AGAIN';
+    again.style.marginTop='20px';
+    again.addEventListener('click',function(){
+      document.getElementById('ending-screen').style.display='none';
+      initGame();
+      startWave(1);
+    });
+    ec.appendChild(again);
+  },700);
+}
+
+// ── Init ──────────────────────────────────────────────────────
+function initGame(){
+  GS.score=0; GS.wave=1; GS.shield=3; GS.running=true; GS.paused=false;
+  ship.x=W/2; ship.y=H*0.75;
+  ship.vx=0; ship.vy=0; ship.invT=0; ship.hitFlash=0; ship.engineFlicker=0;
+  ship.thrustU=false; ship.thrustD=false; ship.thrustL=false; ship.thrustR=false;
+  Kpad.up=false; Kpad.down=false; Kpad.left=false; Kpad.right=false;
+  bullets=[]; asteroids=[]; particles=[]; shieldOrbs=[]; forceRings=[];
+  force=100; forceReady=false; forceWaveActive=false;
+  gunnerUnlocked=false;
+  arc.style.display='none';
+  forceBtnEl.style.display='none';
+  gunnerAngle=-1.57;
+  shootTimer=0; fc=0;
+  initStars();
+  updateHUD();
+}
+
+// ── Update ────────────────────────────────────────────────────
+function update(){
+  if(!GS.running||GS.paused) return;
+  fc++;
+
+  // Ship momentum physics — thrusters apply force, drag bleeds velocity
+  ship.thrustU=Kpad.up;   ship.thrustD=Kpad.down;
+  ship.thrustL=Kpad.left; ship.thrustR=Kpad.right;
+
+  if(Kpad.up)    ship.vy-=ship.THRUST;
+  if(Kpad.down)  ship.vy+=ship.THRUST;
+  if(Kpad.left)  ship.vx-=ship.THRUST;
+  if(Kpad.right) ship.vx+=ship.THRUST;
+
+  // Space drag — slow bleed, not instant stop
+  ship.vx*=ship.DRAG;
+  ship.vy*=ship.DRAG;
+
+  // Speed cap
+  var spd=Math.sqrt(ship.vx*ship.vx+ship.vy*ship.vy);
+  if(spd>ship.MAXSPD){ var sc=ship.MAXSPD/spd; ship.vx*=sc; ship.vy*=sc; }
+
+  ship.x+=ship.vx;
+  ship.y+=ship.vy;
+
+  // Hard boundary — slight bounce
+  if(ship.x<ship.w/2)      { ship.x=ship.w/2;      ship.vx*=-0.3; }
+  if(ship.x>W-ship.w/2)    { ship.x=W-ship.w/2;    ship.vx*=-0.3; }
+  if(ship.y<ship.h/2)      { ship.y=ship.h/2;       ship.vy*=-0.3; }
+  if(ship.y>H-ship.h/2)    { ship.y=H-ship.h/2;     ship.vy*=-0.3; }
+
+  ship.engineFlicker=(ship.engineFlicker+1)%8;
+  if(ship.invT>0) ship.invT--;
+
+  // Auto shoot
+  shootTimer++;
+  var fireRate = gunnerUnlocked ? 16 : 22;
+  if(shootTimer>=fireRate){ shootTimer=0; doShoot(); }
+
+  // Force regen
+  if(!forceWaveActive){
+    if(force<maxForce) force=Math.min(maxForce,force+0.18);
+    var shouldBeReady = GS.wave>=6 && force>=85;
+    if(shouldBeReady && !forceReady){ forceReady=true; forceBtnEl.classList.add('ready'); }
+    else if(!shouldBeReady && forceReady){ forceReady=false; forceBtnEl.classList.remove('ready'); }
+  }
+
+  // Force wave expand
+  if(forceWaveActive){
+    forceWaveT++;
+    var fwr=forceWaveT*6;
+    if(forceWaveT===1) forceRings.push({r:0,maxR:Math.max(W,H)*0.8,life:40,maxLife:40});
+    // Destroy asteroids in radius
+    for(var i=asteroids.length-1;i>=0;i--){
+      var a=asteroids[i];
+      var dx=a.x-ship.x, dy=a.y-ship.y;
+      var dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist<fwr+10){
+        if(a.large){
+          splitAsteroid(a);
+        } else {
+          GS.score+=50; spawnParts(a.x,a.y,'#a855f7',8,4,20);
+        }
+        asteroids.splice(i,1); waveAsteroidsLeft--;
+      }
+    }
+    if(forceWaveT>60){ forceWaveActive=false; forceRings=[]; }
+  }
+
+  // Force rings
+  for(var i=forceRings.length-1;i>=0;i--){
+    var fr=forceRings[i];
+    fr.life--;
+    fr.r+=8;
+    if(fr.life<=0) forceRings.splice(i,1);
+  }
+
+  // Spawn asteroids
+  if(!waveCleared && asteroidsSpawned<waveCfg.total){
+    spawnTimer++;
+    if(spawnTimer>=waveCfg.interval){
+      spawnTimer=0;
+      var spawnLarge = asteroidsSpawned < waveCfg.large;
+      spawnAsteroid(spawnLarge);
+      asteroidsSpawned++;
+    }
+  }
+
+  // Asteroids
+  for(var i=asteroids.length-1;i>=0;i--){
+    var a=asteroids[i];
+    a.x+=a.vx; a.y+=a.vy; a.rot+=a.rotSpd;
+    if(a.hit>0) a.hit--;
+    // Off screen below or far off sides
+    if(a.y>H+60 || a.x<-100 || a.x>W+100){ asteroids.splice(i,1); waveAsteroidsLeft--; continue; }
+    // Bullet collision
+    for(var j=bullets.length-1;j>=0;j--){
+      var b=bullets[j];
+      if(circlePt(a.x,a.y,a.r,b.x,b.y,4)){
+        a.hp--;
+        a.hit=8;
+        bullets.splice(j,1);
+        spawnParts(a.x,a.y,'rgba(180,180,200,1)',5,3,15);
+        if(a.hp<=0){
+          GS.score+=a.large?200:50;
+          if(a.large) splitAsteroid(a);
+          else spawnParts(a.x,a.y,'#aabbcc',10,4,25);
+          if(Math.random()<0.15) spawnShieldOrb(a.x,a.y);
+          asteroids.splice(i,1); waveAsteroidsLeft--;
+          break;
+        }
+      }
+    }
+    // Ship collision
+    if(!asteroids[i]) continue;
+    if(ship.invT===0 && circleRect(a.x,a.y,a.r,ship.x-ship.w/2+6,ship.y-ship.h/2+6,ship.w-12,ship.h-12)){
+      GS.shield--;
+      ship.invT=120; ship.hitFlash=20;
+      spawnParts(ship.x,ship.y,'#ff4444',16,5,30);
+      updateHUD();
+      if(GS.shield<=0){ gameOver(); return; }
+    }
+  }
+
+  // Bullets
+  for(var i=bullets.length-1;i>=0;i--){
+    var b=bullets[i];
+    b.x+=b.vx; b.y+=b.vy; b.life--;
+    if(b.life<=0||b.y<-20||b.x<-20||b.x>W+20) bullets.splice(i,1);
+  }
+
+  // Shield orbs
+  for(var i=shieldOrbs.length-1;i>=0;i--){
+    var o=shieldOrbs[i];
+    o.y+=o.vy; o.t+=0.06;
+    if(o.y>H+20){ shieldOrbs.splice(i,1); continue; }
+    if(circlePt(o.x,o.y,o.r,ship.x,ship.y,ship.w/2)){
+      if(GS.shield<3){ GS.shield++; updateHUD(); spawnParts(ship.x,ship.y,'#00aaff',10,3,20); }
+      shieldOrbs.splice(i,1);
+    }
+  }
+
+  // Particles
+  for(var i=particles.length-1;i>=0;i--){
+    var p=particles[i];
+    p.x+=p.vx; p.y+=p.vy; p.vy+=0.05; p.life--;
+    if(p.life<=0) particles.splice(i,1);
+  }
+
+  // Wave clear check
+  if(!waveCleared && asteroidsSpawned>=waveCfg.total && waveAsteroidsLeft<=0){
+    onWaveCleared();
+  }
+
+  // Update gunner arc
+  if(gunnerUnlocked) drawGunnerArc();
+
+  updateHUD();
+}
+
+function splitAsteroid(a){
+  spawnParts(a.x,a.y,'#8888aa',14,5,30);
+  for(var k=0;k<3;k++){
+    var ang=k*(6.2832/3)+Math.random()*0.8;
+    var r2=a.r*0.42+Math.random()*6;
+    asteroids.push({
+      x:a.x+Math.cos(ang)*a.r*0.5,
+      y:a.y+Math.sin(ang)*a.r*0.5,
+      vx:a.vx+Math.cos(ang)*2.2,
+      vy:Math.abs(a.vy)+Math.abs(Math.sin(ang))*1.5, // always downward so they clear the screen
+      r:r2, large:false, hp:1,
+      rot:Math.random()*6.28, rotSpd:(Math.random()-0.5)*0.06,
+      pts:makeAsteroidPts(r2), hit:0
+    });
+    waveAsteroidsLeft++; // count the new fragments — do NOT touch asteroidsSpawned
+  }
+}
+
+function gameOver(){
+  GS.running=false;
+  document.getElementById('go-score').textContent='SCORE: '+String(GS.score).padStart(5,'0');
+  document.getElementById('gameover-screen').style.display='flex';
+}
+
+// ── Draw ──────────────────────────────────────────────────────
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  // Bg gradient
+  var bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#000005'); bg.addColorStop(1,'#000814');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+  drawStars();
+
+  // Force rings
+  for(var i=0;i<forceRings.length;i++){
+    var fr=forceRings[i];
+    var a=fr.life/fr.maxLife;
+    ctx.save();
+    ctx.globalAlpha=a*0.6;
+    ctx.strokeStyle='#a855f7'; ctx.lineWidth=3+a*8;
+    ctx.shadowColor='#a855f7'; ctx.shadowBlur=20;
+    ctx.beginPath(); ctx.arc(ship.x,ship.y,fr.r,0,6.2832); ctx.stroke();
+    ctx.globalAlpha=a*0.2;
+    ctx.strokeStyle='#e9d5ff'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(ship.x,ship.y,fr.r-6,0,6.2832); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Shield orbs
+  for(var i=0;i<shieldOrbs.length;i++){
+    var o=shieldOrbs[i];
+    ctx.save();
+    ctx.shadowColor='#00aaff'; ctx.shadowBlur=12;
+    ctx.fillStyle='rgba(0,150,255,'+(0.6+0.3*Math.sin(o.t*3))+')';
+    ctx.beginPath(); ctx.arc(o.x,o.y,o.r,0,6.2832); ctx.fill();
+    ctx.strokeStyle='#88ddff'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle='#fff'; ctx.font='bold 7px monospace'; ctx.textAlign='center';
+    ctx.shadowBlur=0; ctx.fillText('+',o.x,o.y+3);
+    ctx.restore();
+  }
+
+  // Asteroids
+  for(var i=0;i<asteroids.length;i++){
+    var a=asteroids[i];
+    if(a.hit>0){
+      ctx.save(); ctx.shadowColor='#fff'; ctx.shadowBlur=12;
+      drawAsteroid(a);
+      ctx.restore();
+    } else {
+      drawAsteroid(a);
+    }
+  }
+
+  // Bullets
+  for(var i=0;i<bullets.length;i++){
+    var b=bullets[i];
+    ctx.save();
+    var col=b.gunner?'#22c55e':'#88ccff';
+    ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=8;
+    rr(ctx,b.x-2,b.y-5,4,10,2); ctx.fill();
+    ctx.fillStyle='#fff'; rr(ctx,b.x-1,b.y-3,2,6,1); ctx.fill();
+    ctx.restore();
+  }
+
+  drawShip();
+
+  // Particles
+  for(var i=0;i<particles.length;i++){
+    var p=particles[i];
+    ctx.save();
+    ctx.globalAlpha=p.life/p.maxLife;
+    ctx.fillStyle=p.col; ctx.shadowColor=p.col; ctx.shadowBlur=4;
+    ctx.beginPath(); ctx.arc(p.x-cam_x,p.y,p.r,0,6.2832); ctx.fill();
+    ctx.restore();
+  }
+
+  // Wave clear banner
+  if(waveCleared && !betweenWaves){
+    ctx.save();
+    ctx.globalAlpha=0.85;
+    ctx.fillStyle='rgba(0,10,30,0.8)';
+    ctx.fillRect(0,H/2-30,W,60);
+    ctx.fillStyle='#e0e8ff'; ctx.font='bold 20px monospace'; ctx.textAlign='center';
+    ctx.shadowColor='#6688ff'; ctx.shadowBlur=20;
+    ctx.fillText('WAVE '+GS.wave+' CLEAR',W/2,H/2+7);
+    ctx.restore();
+  }
+}
+
+// ── Loop ──────────────────────────────────────────────────────
+function loop(){
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ── Buttons ───────────────────────────────────────────────────
+document.getElementById('start-btn').addEventListener('click',function(){
+  document.getElementById('overlay').style.display='none';
+  initGame();
+  showDialogue(DIALOGUES[0],function(){ startWave(1); });
+});
+document.getElementById('retry-btn').addEventListener('click',function(){
+  document.getElementById('gameover-screen').style.display='none';
+  initGame();
+  startWave(1);
+});
+
+// Start
+initStars();
+loop();
+
+})();
+</script>
+</body>
+</html>
