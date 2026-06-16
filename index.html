@@ -21,23 +21,22 @@ canvas{display:block;position:fixed;top:0;left:0;}
 #force-bar-bg{width:90px;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;margin-top:2px;border:1px solid rgba(168,85,247,0.3);}
 #force-bar-fill{height:100%;width:100%;background:linear-gradient(90deg,#4c1d95,#a855f7);border-radius:3px;box-shadow:0 0 8px #a855f7;transition:width 0.15s;}
 #wave-lbl{position:fixed;top:10px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:3px;color:rgba(180,210,255,0.5);font-family:monospace;z-index:10;pointer-events:none;}
-/* ── Compact centered D-pad, lightly stretched ── */
-/* ── Mitered plus D-pad — wide wings, fat arrows ── */
-#dpad{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);width:274px;height:250px;z-index:20;pointer-events:none;}
+/* ── Mitered plus D-pad — low to ground, tall, symmetrical ── */
+#dpad{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);width:310px;height:320px;z-index:20;pointer-events:none;}
 .db{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(100,180,255,0.12);border:none;display:flex;-webkit-tap-highlight-color:transparent;pointer-events:auto;filter:drop-shadow(0 0 1px rgba(100,180,255,0.5));}
 .db.on{background:rgba(100,180,255,0.34);filter:drop-shadow(0 0 6px rgba(100,180,255,0.7));}
-/* Wedge shapes — plus arms mitered to center (137,125), arm half-width 62 */
-#du{clip-path:polygon(75px 0, 199px 0, 199px 63px, 137px 125px, 75px 63px);align-items:flex-start;justify-content:center;padding-top:13px;}
-#dd{clip-path:polygon(75px 250px, 199px 250px, 199px 187px, 137px 125px, 75px 187px);align-items:flex-end;justify-content:center;padding-bottom:13px;}
-#dl{clip-path:polygon(0 63px, 0 187px, 75px 187px, 137px 125px, 75px 63px);align-items:center;justify-content:flex-start;padding-left:16px;}
-#dr{clip-path:polygon(274px 63px, 274px 187px, 199px 187px, 137px 125px, 199px 63px);align-items:center;justify-content:flex-end;padding-right:16px;}
+/* Wedge shapes — plus arms mitered to center (155,160), arm half-width 62 */
+#du{clip-path:polygon(93px 0, 217px 0, 217px 98px, 155px 160px, 93px 98px);align-items:flex-start;justify-content:center;padding-top:18px;}
+#dd{clip-path:polygon(93px 320px, 217px 320px, 217px 222px, 155px 160px, 93px 222px);align-items:flex-end;justify-content:center;padding-bottom:18px;}
+#dl{clip-path:polygon(0 98px, 0 222px, 93px 222px, 155px 160px, 93px 98px);align-items:center;justify-content:flex-start;padding-left:20px;}
+#dr{clip-path:polygon(310px 98px, 310px 222px, 217px 222px, 155px 160px, 217px 98px);align-items:center;justify-content:flex-end;padding-right:20px;}
 /* Glow seams at the center X-junction */
 #dpad::after{content:'';position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;
   background:
     linear-gradient(135deg,transparent calc(50% - 1px),rgba(100,180,255,0.35) 50%,transparent calc(50% + 1px)),
     linear-gradient(45deg,transparent calc(50% - 1px),rgba(100,180,255,0.35) 50%,transparent calc(50% + 1px));
-  -webkit-mask:radial-gradient(circle at 137px 125px, #000 0, #000 88px, transparent 90px);
-          mask:radial-gradient(circle at 137px 125px, #000 0, #000 88px, transparent 90px);}
+  -webkit-mask:radial-gradient(circle at 155px 160px, #000 0, #000 88px, transparent 90px);
+          mask:radial-gradient(circle at 155px 160px, #000 0, #000 88px, transparent 90px);}
 .arr-u{width:0;height:0;border-left:30px solid transparent;border-right:30px solid transparent;border-bottom:38px solid rgba(120,200,255,0.9);}
 .arr-d{width:0;height:0;border-left:30px solid transparent;border-right:30px solid transparent;border-top:38px solid rgba(120,200,255,0.9);}
 .arr-l{width:0;height:0;border-top:15px solid transparent;border-bottom:15px solid transparent;border-right:24px solid rgba(120,200,255,0.9);}
@@ -47,7 +46,7 @@ canvas{display:block;position:fixed;top:0;left:0;}
 #force-btn.ready{border-color:#a855f7;box-shadow:0 0 20px #a855f7;background:rgba(168,85,247,0.25);color:#e9d5ff;}
 #force-btn.on{background:rgba(168,85,247,0.5);}
 /* Duke gunner circle — bottom-RIGHT corner */
-#gunner-arc-canvas{position:fixed;bottom:18px;right:8px;width:132px;height:132px;z-index:25;touch-action:none;}
+#gunner-arc-canvas{position:fixed;top:auto;left:auto;bottom:16px;right:10px;width:88px;height:88px;z-index:25;touch-action:none;}
 /* Overlay screens */
 #overlay,#dialogue-screen,#gameover-screen,#ending-screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;}
 #overlay{background:radial-gradient(ellipse at center,#000814 0%,#000 100%);}
@@ -156,7 +155,7 @@ window.addEventListener('resize',resize);
 // Gunner arc canvas
 var arc = document.getElementById('gunner-arc-canvas');
 var actx = arc.getContext('2d');
-arc.width=132; arc.height=132;
+arc.width=88; arc.height=88;
 
 // ── Rounded rect ──────────────────────────────────────────────
 function rr(c,x,y,w,h,r){
@@ -604,13 +603,13 @@ function triggerForceWave(){
 var cam_x=0; // unused but kept for drawAsteroid compat
 
 function drawGunnerArc(){
-  actx.clearRect(0,0,132,132);
+  actx.clearRect(0,0,88,88);
   if(!gunnerUnlocked) return;
-  var cx=66, cy=66, rad=51;
+  var cx=44, cy=44, rad=34;
   actx.save();
 
   // Outer dim ring — full 360
-  actx.strokeStyle='rgba(34,197,94,0.15)'; actx.lineWidth=16;
+  actx.strokeStyle='rgba(34,197,94,0.15)'; actx.lineWidth=11;
   actx.beginPath(); actx.arc(cx,cy,rad,0,6.2832); actx.stroke();
 
   // Active ring border — full 360
@@ -619,7 +618,7 @@ function drawGunnerArc(){
 
   // Center hub
   actx.fillStyle='rgba(34,197,94,0.15)';
-  actx.beginPath(); actx.arc(cx,cy,10,0,6.2832); actx.fill();
+  actx.beginPath(); actx.arc(cx,cy,7,0,6.2832); actx.fill();
   actx.strokeStyle='rgba(34,197,94,0.5)'; actx.lineWidth=1;
   actx.stroke();
 
@@ -627,7 +626,7 @@ function drawGunnerArc(){
   actx.strokeStyle='rgba(34,197,94,0.3)'; actx.lineWidth=1.5;
   for(var t=0;t<8;t++){
     var ta=t*6.2832/8;
-    var inner=t%2===0?rad-10:rad-6;
+    var inner=t%2===0?rad-7:rad-4;
     actx.beginPath();
     actx.moveTo(cx+Math.cos(ta)*inner, cy+Math.sin(ta)*inner);
     actx.lineTo(cx+Math.cos(ta)*(rad+1), cy+Math.sin(ta)*(rad+1));
@@ -645,14 +644,14 @@ function drawGunnerArc(){
   // Drag knob on ring
   var kx=cx+Math.cos(gunnerAngle)*rad, ky=cy+Math.sin(gunnerAngle)*rad;
   actx.fillStyle='#22c55e'; actx.shadowBlur=12;
-  actx.beginPath(); actx.arc(kx,ky,10,0,6.2832); actx.fill();
+  actx.beginPath(); actx.arc(kx,ky,8,0,6.2832); actx.fill();
   actx.fillStyle='#fff'; actx.shadowBlur=0;
-  actx.beginPath(); actx.arc(kx,ky,3.5,0,6.2832); actx.fill();
+  actx.beginPath(); actx.arc(kx,ky,3,0,6.2832); actx.fill();
 
   // DUKE label centered
-  actx.font='bold 8px monospace'; actx.fillStyle='rgba(34,197,94,0.65)';
+  actx.font='bold 7px monospace'; actx.fillStyle='rgba(34,197,94,0.65)';
   actx.textAlign='center'; actx.shadowBlur=0;
-  actx.fillText('DUKE',cx,cy+4);
+  actx.fillText('DUKE',cx,cy+3);
 
   actx.restore();
 }
